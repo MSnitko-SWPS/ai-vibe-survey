@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PoC: AI-vibe — zaznaczanie fragmentów maila</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#101a2e; --muted:#93a4c7; --text:#eaf0ff;
+      --accent:#7c5cff; --accent2:#00d3a7; --danger:#ff5c7a; --line:#223255;
+      --hl: rgba(124,92,255,.25);
+      --hl-border: rgba(124,92,255,.65);
+      --shadow: 0 16px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:var(--sans); background: radial-gradient(1000px 600px at 20% 0%, rgba(124,92,255,.25), transparent 55%),
+      radial-gradient(900px 600px at 100% 20%, rgba(0,211,167,.18), transparent 50%),
+      var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:1100px; margin:40px auto; padding:0 18px 48px}
+    header{display:flex; gap:16px; align-items:flex-start; justify-content:space-between; margin-bottom:18px}
+    h1{font-size:22px; margin:0 0 6px; letter-spacing:.2px}
+    .sub{color:var(--muted); margin:0; line-height:1.35}
+    .pill{
+      font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px;
+      color:var(--muted); background: rgba(255,255,255,.03)
+    }
+    .grid{display:grid; grid-template-columns: 1.2fr .8fr; gap:16px}
+    @media (max-width: 920px){ .grid{grid-template-columns:1fr} }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .card-h{padding:14px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center}
+    .card-h strong{font-size:13px; letter-spacing:.4px; text-transform:uppercase; color:var(--muted)}
+    .card-b{padding:16px}
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    label{font-size:12px; color:var(--muted); display:block; margin:10px 0 6px}
+    input[type="text"], textarea, select{
+      width:100%; padding:10px 11px; border-radius:12px; border:1px solid var(--line);
+      background: rgba(0,0,0,.18); color:var(--text); outline:none;
+    }
+    textarea{min-height:86px; resize:vertical}
+    input[type="range"]{width:100%}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--line); background: rgba(255,255,255,.04);
+      color:var(--text); padding:10px 12px; border-radius:12px; cursor:pointer;
+      transition: transform .06s ease, background .2s ease, border-color .2s ease;
+      user-select:none;
+    }
+    .btn:hover{background: rgba(255,255,255,.07); border-color: rgba(124,92,255,.6)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{background: rgba(124,92,255,.18); border-color: rgba(124,92,255,.55)}
+    .btn.good{background: rgba(0,211,167,.14); border-color: rgba(0,211,167,.5)}
+    .btn.danger{background: rgba(255,92,122,.12); border-color: rgba(255,92,122,.45)}
+    .hint{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.35}
+    .email{
+      line-height:1.55; font-size:15px; padding:14px 14px;
+      background: rgba(0,0,0,.16); border:1px dashed rgba(147,164,199,.35);
+      border-radius:14px;
+      white-space:pre-wrap;
+    }
+    .selection{
+      font-family:var(--mono); font-size:12px; color: rgba(234,240,255,.9);
+      background: rgba(124,92,255,.12); border:1px solid rgba(124,92,255,.35);
+      padding:10px; border-radius:12px; margin-top:10px;
+      overflow:auto;
+    }
+    .list{display:flex; flex-direction:column; gap:10px}
+    .item{
+      border:1px solid var(--line); border-radius:14px; padding:12px;
+      background: rgba(255,255,255,.03)
+    }
+    .item-top{display:flex; justify-content:space-between; gap:10px; align-items:flex-start}
+    .badge{
+      font-size:11px; padding:4px 8px; border-radius:999px;
+      border:1px solid rgba(124,92,255,.45); background: rgba(124,92,255,.14); color: rgba(234,240,255,.95);
+      white-space:nowrap;
+    }
+    .meta{font-size:12px; color:var(--muted); margin-top:6px}
+    .quote{
+      margin:10px 0 0; padding:10px 12px;
+      border-left:3px solid rgba(124,92,255,.6);
+      background: rgba(124,92,255,.08);
+      border-radius:12px;
+      white-space:pre-wrap;
+    }
+    .status{font-size:12px; margin-left:auto; color:var(--muted)}
+    .status.ok{color: rgba(0,211,167,.95)}
+    .status.err{color: rgba(255,92,122,.95)}
+    .small{font-size:12px; color:var(--muted)}
+    .footer-actions{display:flex; gap:10px; flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>PoC: Ankieta „AI vibe” — zaznacz fragmenty maila</h1>
+        <p class="sub">Zaznacz fragment w treści maila, dodaj tag + intensywność, a potem wyślij do Google Sheets (Apps Script).</p>
+      </div>
+      <div class="pill">1 plik • GitHub Pages • Google Sheets</div>
+    </header>
+
+    <div class="grid">
+      <!-- LEWA: email + zaznaczanie -->
+      <section class="card">
+        <div class="card-h">
+          <strong>Tekst maila</strong>
+          <span class="small">Tip: zaznacz myszą i kliknij „Zapisz zaznaczenie”</span>
+        </div>
+        <div class="card-b">
+          <label for="respondentId">ID respondenta (np. M01, inicjały+liczba)</label>
+          <input id="respondentId" type="text" placeholder="np. MS01" />
+
+          <label>Treść do anotacji</label>
+          <div id="emailText" class="email">
+Dzień dobry,
+dziękujemy za spotkanie. Poniżej przesyłamy podsumowanie ustaleń oraz kolejne kroki.
+W ramach następnego etapu przygotujemy propozycję harmonogramu i zidentyfikujemy zależności między zespołami.
+Jeżeli mają Państwo dodatkowe pytania, pozostajemy do dyspozycji.
+Z poważaniem,
+Zespół Projektowy
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btnCapture">Zapisz zaznaczenie</button>
+            <button class="btn" id="btnClearSel">Wyczyść bieżące</button>
+          </div>
+
+          <div id="selectionBox" class="selection" style="display:none"></div>
+
+          <label for="tag">Tag (dlaczego AI‑like?)</label>
+          <select id="tag">
+            <option value="zbyt-ogolne">Zbyt ogólne / brak konkretu</option>
+            <option value="zbyt-uprzejme">Nadmierna grzeczność / „korpo‑ton”</option>
+            <option value="szablon">Szablonowość / formułki</option>
+            <option value="nienaturalny-szyk">Nienaturalny szyk / słownictwo</option>
+            <option value="powtorzenia">Powtórzenia / redundancja</option>
+            <option value="brak-osadzenia">Brak odniesień do kontekstu spotkania</option>
+          </select>
+
+          <label for="intensity">Intensywność AI‑vibe: <span id="intensityVal" class="badge">3</span></label>
+          <input id="intensity" type="range" min="1" max="5" value="3" />
+
+          <label for="comment">Krótki komentarz (opcjonalnie, max ~200 znaków)</label>
+          <textarea id="comment" placeholder="np. 'Brzmi jak wygenerowane: dużo uprzejmości, zero konkretów.'"></textarea>
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn good" id="btnAdd">Dodaj adnotację do listy</button>
+          </div>
+
+          <p class="hint">
+            ⚠️ W tym PoC zapisujemy zakres zaznaczenia jako <b>start/end offset</b> w obrębie jednego węzła tekstu.
+            Na potrzeby pracy dyplomowej zwykle wystarczy, ale jeśli będziesz dzielić mail na wiele elementów HTML, trzeba będzie rozbudować mapowanie offsetów.
+          </p>
+        </div>
+      </section>
+
+      <!-- PRAWA: lista adnotacji + wysyłka -->
+      <aside class="card">
+        <div class="card-h">
+          <strong>Adnotacje</strong>
+          <span id="status" class="status">gotowe</span>
+        </div>
+        <div class="card-b">
+          <div class="footer-actions" style="margin-bottom:10px">
+            <button class="btn" id="btnExport">Pobierz JSON</button>
+            <button class="btn danger" id="btnReset">Reset listy</button>
+          </div>
+
+          <label for="scriptUrl">URL Apps Script (Web App)</label>
+          <input id="scriptUrl" type="text" placeholder="Wklej URL /exec z Apps Script (patrz instrukcja poniżej)" />
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btnSend">Wyślij do Google Sheets</button>
+          </div>
+
+          <div class="hint">
+            Dane wysyłamy metodą POST (JSON) do Web App w Apps Script (doPost). Google opisuje mechanizm web appów i doPost/doGet w dokumentacji. [1](https://developers.google.com/apps-script/guides/web)
+          </div>
+
+          <div style="margin-top:14px">
+            <label>Lista (podgląd)</label>
+            <div id="list" class="list"></div>
+            <p id="empty" class="hint">Brak adnotacji — zaznacz fragment w mailu i kliknij „Dodaj adnotację”.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // ====== Konfiguracja (opcjonalnie) ======
+    // Możesz wpisać na stałe swój Apps Script URL:
+    // const SCRIPT_URL = "https://script.google.com/macros/s/XXXX/exec";
+    const SCRIPT_URL = "";
+
+    // ====== Stan ======
+    let currentSelection = null;   // {text, start, end}
+    let annotations = [];          // lista obiektów
+
+    // ====== Helpers UI ======
+    const el = (id) => document.getElementById(id);
+    const statusEl = el("status");
+    const setStatus = (msg, type="") => {
+      statusEl.textContent = msg;
+      statusEl.className = "status " + (type || "");
+    };
+
+    const updateIntensityBadge = () => {
+      el("intensityVal").textContent = el("intensity").value;
+    };
+    el("intensity").addEventListener("input", updateIntensityBadge);
+    updateIntensityBadge();
+
+    // ====== Zaznaczanie (capture) ======
+    function captureSelection(){
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) {
+        setStatus("Brak zaznaczenia", "err");
+        return null;
+      }
+      const text = sel.toString().trim();
+      if (!text) {
+        setStatus("Zaznaczenie puste", "err");
+        return null;
+      }
+
+      const range = sel.getRangeAt(0);
+
+      // Ograniczenie PoC: zakładamy, że zaznaczenie jest w obrębie jednego TextNode w #emailText
+      const container = el("emailText");
+      if (!container.contains(range.commonAncestorContainer)) {
+        setStatus("Zaznaczaj tylko wewnątrz maila", "err");
+        return null;
+      }
+
+      // startOffset/endOffset dotyczą węzła startContainer/endContainer.
+      // Jeśli użytkownik zaznaczy fragment przekraczający węzły, ten PoC może być niedokładny.
+      const start = range.startOffset;
+      const end = range.endOffset;
+
+      currentSelection = { text, start, end };
+      el("selectionBox").style.display = "block";
+      el("selectionBox").textContent = `Zaznaczono: "${text}"  [start=${start}, end=${end}]`;
+      setStatus("Zapisano zaznaczenie", "ok");
+      return currentSelection;
+    }
+
+    function clearCurrentSelection(){
+      currentSelection = null;
+      el("selectionBox").style.display = "none";
+      el("selectionBox").textContent = "";
+      window.getSelection()?.removeAllRanges();
+      setStatus("Wyczyszczono bieżące", "");
+    }
+
+    // ====== Render listy ======
+    function render(){
+      const list = el("list");
+      list.innerHTML = "";
+      el("empty").style.display = annotations.length ? "none" : "block";
+
+      annotations.forEach((a, idx) => {
+        const item = document.createElement("div");
+        item.className = "item";
+
+        const top = document.createElement("div");
+        top.className = "item-top";
+
+        const left = document.createElement("div");
+        left.innerHTML = `<div><span class="badge">${a.tag}</span> <span class="badge" style="border-color:rgba(0,211,167,.5); background:rgba(0,211,167,.14)">AI ${a.intensity}/5</span></div>
+                          <div class="meta">#${idx+1} • start=${a.start}, end=${a.end} • ${new Date(a.ts).toLocaleString()}</div>`;
+
+        const del = document.createElement("button");
+        del.className = "btn danger";
+        del.textContent = "Usuń";
+        del.onclick = () => {
+          annotations.splice(idx, 1);
+          render();
+        };
+
+        top.appendChild(left);
+        top.appendChild(del);
+
+        const quote = document.createElement("div");
+        quote.className = "quote";
+        quote.textContent = a.text;
+
+        const c = document.createElement("div");
+        c.className = "meta";
+        c.textContent = a.comment ? `Komentarz: ${a.comment}` : "Komentarz: —";
+
+        item.appendChild(top);
+        item.appendChild(quote);
+        item.appendChild(c);
+        list.appendChild(item);
+      });
+    }
+
+    // ====== Dodawanie adnotacji ======
+    function addAnnotation(){
+      const rid = el("respondentId").value.trim();
+      if (!rid) { setStatus("Uzupełnij ID respondenta", "err"); return; }
+
+      if (!currentSelection) { setStatus("Najpierw zaznacz fragment i kliknij 'Zapisz zaznaczenie'", "err"); return; }
+
+      const tag = el("tag").value;
+      const intensity = Number(el("intensity").value);
+      const comment = el("comment").value.trim().slice(0, 200);
+
+      const ann = {
+        respondentId: rid,
+        tag,
+        intensity,
+        comment,
+        text: currentSelection.text,
+        start: currentSelection.start,
+        end: currentSelection.end,
+        emailId: "mail_001",
+        ts: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      };
+
+      annotations.push(ann);
+      clearCurrentSelection();
+      el("comment").value = "";
+      render();
+      setStatus("Dodano adnotację", "ok");
+    }
+
+    // ====== Export JSON ======
+    function downloadJSON(){
+      const blob = new Blob([JSON.stringify(annotations, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "annotations.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("Pobrano JSON", "ok");
+    }
+
+    // ====== Reset ======
+    function resetAll(){
+      annotations = [];
+      currentSelection = null;
+      render();
+      setStatus("Zresetowano", "");
+    }
+
+    // ====== Wysyłka do Google Sheets (Apps Script Web App) ======
+    async function sendToSheets(){
+      if (!annotations.length) { setStatus("Brak danych do wysłania", "err"); return; }
+
+      const url = (el("scriptUrl").value.trim() || SCRIPT_URL).trim();
+      if (!url) { setStatus("Wklej URL Apps Script (/exec)", "err"); return; }
+
+      setStatus("Wysyłam…", "");
+
+      try{
+        const payload = {
+          meta: {
+            study: "AI_vibe_PoC",
+            sentAt: new Date().toISOString(),
+            count: annotations.length
+          },
+          annotations
+        };
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload),
+          redirect: "follow"
+        });
+
+        const text = await res.text();
+        if (!res.ok){
+          setStatus("Błąd wysyłki: HTTP " + res.status, "err");
+          console.error(text);
+          return;
+        }
+
+        setStatus("Wysłano do Sheets ✅", "ok");
+        console.log("Apps Script response:", text);
+      }catch(err){
+        setStatus("Błąd (CORS / URL / uprawnienia). Zobacz konsolę.", "err");
+        console.error(err);
+      }
+    }
+
+    // ====== Eventy ======
+    el("btnCapture").addEventListener("click", captureSelection);
+    el("btnClearSel").addEventListener("click", clearCurrentSelection);
+    el("btnAdd").addEventListener("click", addAnnotation);
+    el("btnExport").addEventListener("click", downloadJSON);
+    el("btnReset").addEventListener("click", resetAll);
+    el("btnSend").addEventListener("click", sendToSheets);
+
+    render();
+  </script>
+</body>
+</html>
