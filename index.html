@@ -360,40 +360,41 @@ Zespół Projektowy
     // ====== Wysyłka do Google Sheets (Apps Script Web App) ======
     async function sendToSheets(){
       if (!annotations.length) { setStatus("Brak danych do wysłania", "err"); return; }
-
-      const url = (el("scriptUrl").value.trim() || SCRIPT_URL).trim();
+    
+      const url = (document.getElementById("scriptUrl").value.trim() || SCRIPT_URL).trim();
       if (!url) { setStatus("Wklej URL Apps Script (/exec)", "err"); return; }
-
+    
       setStatus("Wysyłam…", "");
-
+    
       try{
         const payload = {
-          meta: {
-            study: "AI_vibe_PoC",
-            sentAt: new Date().toISOString(),
-            count: annotations.length
-          },
+          meta: { study: "AI_vibe_PoC", sentAt: new Date().toISOString(), count: annotations.length },
           annotations
         };
-
+    
+        // ✅ Simple request → zwykle brak preflight
+        const body = new URLSearchParams();
+        body.append("payload", JSON.stringify(payload));
+    
         const res = await fetch(url, {
           method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(payload),
+          body,                 // brak headers!
           redirect: "follow"
         });
-
+    
+        // Uwaga: czasem Apps Script zwraca redirect; fetch z redirect:follow to obsłuży.
         const text = await res.text();
         if (!res.ok){
           setStatus("Błąd wysyłki: HTTP " + res.status, "err");
           console.error(text);
           return;
         }
-
+    
         setStatus("Wysłano do Sheets ✅", "ok");
         console.log("Apps Script response:", text);
+    
       }catch(err){
-        setStatus("Błąd (CORS / URL / uprawnienia). Zobacz konsolę.", "err");
+        setStatus("Błąd wysyłki (sprawdź URL / uprawnienia).", "err");
         console.error(err);
       }
     }
