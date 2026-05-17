@@ -199,8 +199,36 @@
     .screen-title-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px}
     .step-info{color:var(--muted); font-size:13px}
 
-    .blocks-grid{display:grid; grid-template-columns: 1.05fr .95fr; gap:16px}
-    @media (max-width: 880px){ .blocks-grid{grid-template-columns:1fr} }
+    .blocks-grid{display:flex; flex-direction:column; gap:22px}
+
+    /* === Sekcje: anotacje (silne) i ocena (subtelniejsze) === */
+    .section-annot{
+      background: rgba(124,92,255,.06);
+      border:1px solid rgba(124,92,255,.28);
+      border-radius:14px;
+      padding:14px 16px;
+    }
+    .section-rating{
+      background: rgba(255,255,255,.02);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px 16px;
+    }
+    .section-annot h3, .section-rating h3{ margin-top:0 }
+    .section-rating h3{ color: var(--muted); font-weight:600; font-size:14px; text-transform:uppercase; letter-spacing:.4px }
+
+    .nudge{
+      font-size:12px; color:var(--muted);
+      padding:8px 10px; border-radius:10px;
+      background: rgba(255,255,255,.03);
+      border:1px dashed var(--line);
+      margin:8px 0 4px;
+    }
+    .intensity-hint{
+      font-size:12px; color:var(--muted); line-height:1.5;
+      margin-top:6px;
+    }
+    .intensity-hint b{ color: var(--text); font-weight:600 }
 
     .ai-scale{
       display:grid; grid-template-columns: repeat(5, 1fr); gap:6px;
@@ -309,19 +337,28 @@ Dział Obsługi Klienta`
      KATALOGI / SŁOWNIKI
      ============================================================= */
   const TAGS = [
+    { v:"konkretne",         l:"Konkretne / precyzyjne" },
+    { v:"naturalne",         l:"Naturalne / płynne" },
+    { v:"kontekst",          l:"Dopasowane do kontekstu" },
+    { v:"indywidualny-styl", l:"Indywidualny styl / charakter" },
     { v:"zbyt-ogolne",       l:"Zbyt ogólne / brak konkretu" },
     { v:"zbyt-uprzejme",     l:"Nadmierna grzeczność / „korpo-ton”" },
     { v:"szablon",           l:"Szablonowość / formułki" },
     { v:"nienaturalny-szyk", l:"Nienaturalny szyk / słownictwo" },
     { v:"powtorzenia",       l:"Powtórzenia / redundancja" },
     { v:"brak-osadzenia",    l:"Brak odniesień do kontekstu" },
-    { v:"naturalne",         l:"Brzmi naturalnie / ludzko" },
     { v:"inne",              l:"Inne" }
   ];
 
   const AGE_RANGES   = ["18–24","25–34","35–44","45–54","55+"];
   const EXPERIENCE   = ["0–2","3–5","6–10","10+"];
-  const JOB_LEVELS   = ["specjalista","senior","manager","inne"];
+  const JOB_LEVELS   = [
+    "Specjalista / wykonawca",
+    "Starszy specjalista",
+    "Manager / lider zespołu",
+    "Właściciel / freelancer",
+    "Inne"
+  ];
   const AI_TASKS     = [
     "Pisanie maili",
     "Streszczenia / podsumowania",
@@ -596,11 +633,12 @@ Dział Obsługi Klienta`
         <h2>Jak będzie wyglądać badanie</h2>
         <p class="sub" style="margin-bottom:12px">Za chwilę przeczytasz 3 krótkie e-maile biznesowe. Dla każdego z nich:</p>
         <ol class="info-list">
-          <li><strong>Zaznacz</strong> myszą fragmenty, które wydają Ci się charakterystyczne, nienaturalne lub szczególnie zwracają Twoją uwagę.</li>
-          <li><strong>Przypisz etykietę</strong> i ustaw intensywność (1–5).</li>
+          <li><strong>Zaznacz</strong> myszą fragmenty, które <strong>szczególnie przyciągają Twoją uwagę</strong> — pozytywnie lub negatywnie.</li>
+          <li><strong>Przypisz etykietę</strong> i ustaw intensywność wrażenia (1–5).</li>
           <li>Możesz dodać krótki <strong>komentarz</strong> (opcjonalnie).</li>
           <li>Na końcu każdego maila ocenisz całość na kilku skalach.</li>
         </ol>
+        <p class="hint" style="margin-top:10px">Nie ma „złych” ani „dobrych” odpowiedzi — interesują nas Twoje pierwsze, autentyczne wrażenia.</p>
         <p class="hint" style="margin-top:14px">Najpierw zrobimy krótki <strong>warm-up</strong>, żeby oswoić Cię z interfejsem. Te dane nie są analizowane.</p>
       </div>
     `;
@@ -618,36 +656,34 @@ Dział Obsługi Klienta`
       <div class="card-h"><strong>Ekran 4 — Warm-up (nieanalizowany)</strong><span class="step-info">~40 s</span></div>
       <div class="card-b">
         <div class="warmup-banner">To krótka rozgrzewka — pomoże Ci oswoić się z interfejsem. Te zaznaczenia nie są analizowane.</div>
-        <div class="grid12">
-          <div>
-            <label>Treść e-maila (zaznacz fragment myszą)</label>
-            <div class="email" id="warmupEmail" data-email-id="${WARMUP_EMAIL.id}">${escapeHtml(WARMUP_EMAIL.body)}</div>
 
-            <div class="row" style="margin-top:12px">
-              <button class="btn primary" id="btnCapW">Zapisz zaznaczenie</button>
-              <button class="btn" id="btnClearSelW">Wyczyść bieżące</button>
-            </div>
-            <div id="selectionBoxW" class="selection-box" style="display:none"></div>
+        <div class="section-annot">
+          <h3 style="margin-top:0">Krok 1 — zaznacz fragmenty</h3>
+          <label>Treść e-maila (zaznacz fragment myszą — adnotacja zostanie utworzona automatycznie)</label>
+          <div class="email" id="warmupEmail" data-email-id="${WARMUP_EMAIL.id}">${escapeHtml(WARMUP_EMAIL.body)}</div>
 
-            <label for="tagW">Etykieta</label>
-            <select id="tagW"></select>
+          <div id="selectionBoxW" class="selection-box" style="display:none"></div>
 
-            <label for="intW">Intensywność: <span id="intValW" class="badge">3</span></label>
-            <input id="intW" type="range" min="1" max="5" value="3" />
+          <label for="tagW">Etykieta (Wybierz główny powód, dla którego ten fragment zwrócił Twoją uwagę)</label>
+          <select id="tagW"></select>
 
-            <label for="commW">Komentarz (opcjonalnie)</label>
-            <textarea id="commW" maxlength="200" placeholder="krótki komentarz…"></textarea>
+          <label for="intW">Intensywność wrażenia: <span id="intValW" class="badge">3</span></label>
+          <input id="intW" type="range" min="1" max="5" value="3" />
+          <p class="intensity-hint">
+            <b>1</b> – ledwo zauważalne &nbsp;·&nbsp; <b>3</b> – wyraźnie zauważalne &nbsp;·&nbsp; <b>5</b> – bardzo rzucające się w oczy
+          </p>
 
-            <div class="row" style="margin-top:12px">
-              <button class="btn good" id="btnAddW">Dodaj adnotację</button>
-            </div>
+          <label for="commW">Komentarz (opcjonalnie)</label>
+          <textarea id="commW" maxlength="200" placeholder="krótki komentarz…"></textarea>
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn good" id="btnAddW">Dodaj adnotację</button>
+            <button class="btn" id="btnClearSelW">Wyczyść bieżące zaznaczenie</button>
           </div>
 
-          <aside>
-            <label>Twoje adnotacje (warm-up)</label>
-            <div id="listW" class="list"></div>
-            <p id="emptyW" class="empty">Brak adnotacji — to ćwiczenie, możesz przejść dalej w dowolnej chwili.</p>
-          </aside>
+          <label style="margin-top:18px">Twoje adnotacje (warm-up)</label>
+          <div id="listW" class="list"></div>
+          <p id="emptyW" class="empty">Brak adnotacji — to ćwiczenie, możesz przejść dalej w dowolnej chwili.</p>
         </div>
       </div>
     `;
@@ -656,7 +692,6 @@ Dział Obsługi Klienta`
     fillTagSelect(card.querySelector("#tagW"));
     setupEmailAnnotation({
       emailEl: card.querySelector("#warmupEmail"),
-      captureBtn: card.querySelector("#btnCapW"),
       clearBtn: card.querySelector("#btnClearSelW"),
       addBtn: card.querySelector("#btnAddW"),
       selectionBox: card.querySelector("#selectionBoxW"),
@@ -671,7 +706,7 @@ Dział Obsługi Klienta`
       mailPosition: 0
     });
 
-    root.appendChild(nav({ onBack: back, onNext: next, nextLabel:"Przejdź do badania" }));
+    root.appendChild(nav({ onBack: back, onNext: next, nextLabel:"Przejdź do głównej części badania" }));
   }
 
   /* =============================================================
@@ -689,49 +724,51 @@ Dział Obsługi Klienta`
         </div>
         <div class="card-b">
           <div class="blocks-grid">
-            <div>
+            <div class="section-annot">
               <h3 style="margin-top:0">Krok 1 — zaznacz fragmenty</h3>
-              <label>Treść e-maila</label>
+              <label>Treść e-maila (zaznacz fragment myszą — adnotacja zostanie utworzona automatycznie)</label>
               <div class="email" data-email-id="${mail.id}">${escapeHtml(mail.body)}</div>
 
-              <div class="row" style="margin-top:12px">
-                <button class="btn primary btn-cap">Zapisz zaznaczenie</button>
-                <button class="btn btn-clear">Wyczyść bieżące</button>
-              </div>
               <div class="selection-box sel-box" style="display:none"></div>
 
-              <label>Etykieta</label>
+              <label>Etykieta (Wybierz główny powód, dla którego ten fragment zwrócił Twoją uwagę)</label>
               <select class="tag-sel"></select>
 
-              <label>Intensywność: <span class="badge int-val">3</span></label>
+              <label>Intensywność wrażenia: <span class="badge int-val">3</span></label>
               <input class="int-range" type="range" min="1" max="5" value="3" />
+              <p class="intensity-hint">
+                <b>1</b> – ledwo zauważalne &nbsp;·&nbsp; <b>3</b> – wyraźnie zauważalne &nbsp;·&nbsp; <b>5</b> – bardzo rzucające się w oczy
+              </p>
 
               <label>Komentarz (opcjonalnie, do 200 znaków)</label>
               <textarea class="comm" maxlength="200"></textarea>
 
               <div class="row" style="margin-top:12px">
                 <button class="btn good btn-add">Dodaj adnotację</button>
+                <button class="btn btn-clear">Wyczyść bieżące zaznaczenie</button>
               </div>
 
-              <label style="margin-top:18px">Twoje adnotacje do tego e-maila</label>
+              <p class="nudge">💡 Uczestnicy zazwyczaj zaznaczają <strong>2–4 fragmenty</strong> na maila. Nie musisz na siłę szukać więcej — interesują nas tylko te miejsca, które naprawdę zwróciły Twoją uwagę.</p>
+
+              <label style="margin-top:8px">Twoje adnotacje do tego e-maila</label>
               <div class="list ann-list"></div>
               <p class="empty empty-msg">Brak adnotacji — zaznacz fragment i kliknij „Dodaj adnotację”.</p>
             </div>
 
-            <aside>
-              <h3 style="margin-top:0">Krok 2 — ocena całości</h3>
-              <p class="sub" style="margin-bottom:6px">Odpowiedz na 6 krótkich pytań dotyczących całej wiadomości.</p>
+            <div class="section-rating">
+              <h3 style="margin-top:0">Krok 2 — krótka ocena wiadomości</h3>
+              <p class="sub" style="margin-bottom:6px">Oceń całość e-maila na kilku skalach.</p>
 
               ${likertBlock("Naturalność", "Na ile język wydaje się naturalny i płynny?", "naturalnosc", "bardzo sztuczny", "bardzo naturalny")}
               ${likertBlock("Typowość", "Na ile mail brzmi jak wiadomości, które otrzymujesz w pracy?", "typowosc", "zupełnie nietypowy", "bardzo typowy")}
               ${likertBlock("Wiarygodność", "Na ile nadawca wydaje się wiedzieć, o czym pisze?", "wiarygodnosc", "zdecydowanie nie", "zdecydowanie tak")}
               ${likertBlock("Relacyjność", "Na ile ta wiadomość zachęca do dalszej współpracy?", "relacyjnosc", "wcale nie zachęca", "bardzo zachęca")}
 
-              <label>AI Likelihood — czy tekst mógł być wspomagany przez AI?</label>
+              <label>Na ile uważasz, że tekst był współtworzony lub wspomagany przez AI?</label>
               <div class="ai-scale ai-likelihood"></div>
 
               ${likertBlock("Pewność oceny", "Jak bardzo jesteś pewny/a swojej oceny?", "pewnosc", "zgaduję", "bardzo pewny")}
-            </aside>
+            </div>
           </div>
 
           <div id="errBox" class="err-msg"></div>
@@ -743,7 +780,6 @@ Dział Obsługi Klienta`
       fillTagSelect(card.querySelector(".tag-sel"));
       setupEmailAnnotation({
         emailEl: card.querySelector(".email"),
-        captureBtn: card.querySelector(".btn-cap"),
         clearBtn: card.querySelector(".btn-clear"),
         addBtn: card.querySelector(".btn-add"),
         selectionBox: card.querySelector(".sel-box"),
@@ -772,8 +808,12 @@ Dział Obsługi Klienta`
           const r = mail.ratings;
           const missing = ["naturalnosc","typowosc","wiarygodnosc","relacyjnosc","ai_likelihood","pewnosc"].filter(k => r[k] == null);
           if (missing.length){
-            showError("Aby przejść dalej, odpowiedz na wszystkie pytania oceny całościowej (po prawej).");
+            showError("Aby przejść dalej, odpowiedz na wszystkie pytania oceny całościowej.");
             return;
+          }
+          if (mail.annotations.length === 0){
+            const ok = window.confirm("Nie dodałeś/aś żadnej adnotacji do tego e-maila. To dopuszczalne — chcesz przejść dalej?");
+            if (!ok) return;
           }
           next();
         }
@@ -847,20 +887,26 @@ Dział Obsługi Klienta`
       o.intensityValEl.textContent = o.intensityEl.value;
     });
 
-    o.captureBtn.addEventListener("click", () => {
+    // === Auto-capture: zaznaczenie myszą = od razu zapisane (bez klikania "Zapisz") ===
+    const tryCapture = () => {
       const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0){ setBox("Brak zaznaczenia."); return; }
+      if (!sel || sel.rangeCount === 0) return;
       const text = sel.toString().trim();
-      if (!text){ setBox("Zaznaczenie puste — przeciągnij myszą po fragmencie."); return; }
+      if (!text){ return; }
       const range = sel.getRangeAt(0);
-      if (!o.emailEl.contains(range.commonAncestorContainer)){
-        setBox("Zaznaczaj tylko wewnątrz treści e-maila."); return;
-      }
+      if (!o.emailEl.contains(range.commonAncestorContainer)) return;
       const start = range.startOffset;
       const end = range.endOffset;
       currentSelection = { text, start, end };
-      setBox(`Zaznaczono: „${text}”  (znaki ${start}–${end})`);
-    });
+      setBox(`Zaznaczono: „${text}”  (znaki ${start}–${end}). Wybierz etykietę i kliknij „Dodaj adnotację”.`);
+    };
+
+    // Zaznaczanie myszą — capture po puszczeniu przycisku
+    o.emailEl.addEventListener("mouseup", () => setTimeout(tryCapture, 0));
+    // Klawiatura — Shift+strzałki itp.
+    o.emailEl.addEventListener("keyup", () => setTimeout(tryCapture, 0));
+    // Touch — palec na ekranach dotykowych
+    o.emailEl.addEventListener("touchend", () => setTimeout(tryCapture, 0));
 
     o.clearBtn.addEventListener("click", () => {
       currentSelection = null;
@@ -869,7 +915,12 @@ Dział Obsługi Klienta`
     });
 
     o.addBtn.addEventListener("click", () => {
-      if (!currentSelection){ setBox("Najpierw zaznacz fragment i kliknij „Zapisz zaznaczenie”."); return; }
+      // Spróbuj jeszcze raz — jeśli ktoś zaznaczył, ale event nie złapał (np. focus poszedł gdzieś indziej)
+      if (!currentSelection) tryCapture();
+      if (!currentSelection){
+        setBox("Najpierw zaznacz fragment w treści e-maila — wystarczy przeciągnąć myszą po wybranym tekście.");
+        return;
+      }
       const ann = {
         respondentId: state.respondentId,
         emailId: o.emailId,
